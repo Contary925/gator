@@ -6,7 +6,7 @@ import (
 	"github.com/Contary925/gator/internal/config"
 	"fmt"
 	"os"
-	"github.com/Contary925/gator/internal/sql"
+	"database/sql"
 	"github.com/Contary925/gator/internal/database"
 )
 
@@ -16,21 +16,30 @@ type state struct {
 }
 
 func main() {
-	dbURL := "postgres://postgres:postgres@localhost:5432/gator"
+	dbURL := config.Read().DbURL
 	db, err := sql.Open("postgres", dbURL)
-	//dbQueries := database.New(db)
+	dbQueries := database.New(db)
 	if err != nil {
 		fmt.Printf("%v", err)
 		os.Exit(1)
 	}
 	s := state{
-		db: db,
+		db: dbQueries,
 		Config: config.Read(),
 	} 
 	var c commands
 	c.handlers = make(map[string]func(*state, command) error)
 	c.register("login", handlerLogin)
 	c.register("register", handlerRegister)
+	c.register("reset", handlerReset)
+	c.register("users", handlerList)
+	c.register("agg", handlerAgg)
+	c.register("addfeed", middlewareLoggedIn(handlerAddFeed))
+	c.register("feeds", handlerFeeds)
+	c.register("follow", middlewareLoggedIn(handlerFollow))
+	c.register("following", middlewareLoggedIn(handlerFollowsList))
+	c.register("unfollow", middlewareLoggedIn(handlerUnfollow))
+	c.register("browse", middlewareLoggedIn(handlerBrowse))
 	args := os.Args
 	if len(args) < 2 {
 		fmt.Printf("Not enough arguments!\n")
